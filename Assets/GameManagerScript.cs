@@ -1,88 +1,139 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
+using System.Net;
+using UnityEditor.Timeline;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
-    int[] map;
 
-    // ƒƒ\ƒbƒh‰»
-void PrintArray()
-    {
-        string debugText = "";
-        for(int i = 0; i< map.Length; i++) // 1‚ª¡‚Ç‚ÌƒCƒ“ƒfƒbƒNƒX‚È‚Ì‚©‚ğ’²‚×‚é
-        {
-            debugText += map[i].ToString() + ","; // ”z—ñ‚Ì“à—e‚ğo—Í‚·‚éˆ—
-        }
-        Debug.Log(debugText); // —v‘f”‚ğˆê‚Â‚¸‚Âo—Í
-    }
+    public GameObject playerPrefab;
+    public GameObject boxPrefab;
+    // é…åˆ—ã®å®£è¨€
+    int[,] map; // ãƒ¬ãƒ™ãƒ«ãƒ‡ã‚¶ã‚¤ãƒ³ç”¨ã®é…åˆ—
+    GameObject[,] field; // ã‚²ãƒ¼ãƒ ç®¡ç†ç”¨ã®é…åˆ—
 
-    // 1‚Ì’l‚ªŠi”[‚³‚ê‚Ä‚¢‚éƒCƒ“ƒfƒbƒNƒX‚ğæ“¾‚·‚éˆ—‚Ìƒƒ\ƒbƒh‰»
-    int GetPlayerIndex()
+    Vector2Int GetPlayerIndex()
     {
-        for(int i=0;i<map.Length; i++)
+        for (int y = 0; y < field.GetLength(0); y++)
         {
-            if (map[i] == 1)
+            for (int x = 0; x < field.GetLength(1); x++)
             {
-                return i;
+                // nullã ã£ãŸã‚‰ã‚¿ã‚°ã‚’èª¿ã¹ãšæ¬¡ã®è¦ç´ ã¸ç§»ã‚‹
+                if (field[y, x] == null) { continue; }
+                // nullã ã£ãŸã‚‰continueã—ã¦ã„ã‚‹ã®ã§ã€
+                // ã“ã®è¡Œã«è¾¿ã‚Šã¤ãå ´åˆã¯nullã§ãªã„ã“ã¨ãŒç¢ºå®šã€‚
+                // ã‚¿ã‚°ã®ç¢ºèªã‚’è¡Œã†ã€‚
+                if (field[y, x].tag == "Player")
+                {
+                    return new Vector2Int(x, y);
+                }
             }
         }
-        return -1;
+            return new Vector2Int(-1, -1);
     }
 
-    // ˆÚ“®‚Ì‰Â•s‰Â‚ğ”»’f‚µ‚ÄˆÚ“®‚³‚¹‚éˆ—‚Ìƒƒ\ƒbƒh‰»
-    bool MoveNumber(int number, int moveFrom, int moveTo)
+    bool MoveNumber(Vector2Int moveFrom, Vector2Int moveTo)
     {
-        // ˆÚ“®æ‚É‚æ‚Á‚Ä”»’fiƒvƒŒƒCƒ„[‚ÌˆÊ’u‚É‚æ‚Á‚Ä”»’f‚·‚é‚Æ—Ê‚ª‘å•Ï‚È‚±‚Æ‚É‚È‚éj
-        // ˆÚ“®æ‚ª”ÍˆÍŠO‚È‚çˆÚ“®•s‰Â
-        if (moveTo < 0 || moveTo >= map.Length) { return false; }
-        // ˆÚ“®æ‚É2(” )‚ª‹‚½‚ç
-        if (map[moveTo] == 2)
+        // ç§»å‹•å…ˆãŒç¯„å›²å¤–ãªã‚‰ç§»å‹•ä¸å¯
+        // äºŒæ¬¡å…ƒé…åˆ—ã«å¯¾å¿œ
+        if (moveTo.y < 0 || moveTo.y >= field.GetLength(0)) { return false; }
+        if (moveTo.x < 0 || moveTo.x >= field.GetLength(1)) { return false; }
+
+        // ç§»å‹•å…ˆã«2(ç®±)ãŒå±…ãŸã‚‰
+        if (field[moveTo.y,moveTo.x] != null && field[moveTo.y,moveTo.x].tag=="Box")
         {
-            // ‚Ç‚Ì•ûŒü‚ÖˆÚ“®‚·‚é‚©‚ğZo
-            int offset = moveTo - moveFrom; // ” ‚Ìsæ‚ğŒˆ‚ß‚é‚½‚ß‚Ì·•ª
-            // ƒvƒŒƒCƒ„[‚ÌˆÚ“®æ‚©‚çA‚³‚ç‚Éæ‚Ö2(” )‚ğˆÚ“®‚³‚¹‚éB
-            // ” ‚ÌˆÚ“®ˆ—BMoveNumberƒƒ\ƒbƒh“à‚ÅMoveNumberƒƒ\ƒbƒh‚ğ
-            // ŒÄ‚ÑAˆ—‚ªÄ‹A‚µ‚Ä‚¢‚éBˆÚ“®‰Â•s‰Â‚ğbool‚Å‹L˜^
-            bool success = MoveNumber(2, moveTo, moveTo + offset);
-            // ‚à‚µ” ‚ªˆÚ“®¸”s‚µ‚½‚çAƒvƒŒƒCƒ„[‚ÌˆÚ“®‚à¸”s
+            // ã©ã®æ–¹å‘ã¸ç§»å‹•ã™ã‚‹ã‹ã‚’ç®—å‡º
+            Vector2Int velocity = moveTo - moveFrom;
+            // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ç§»å‹•å…ˆã‹ã‚‰ã€æ›´ã«å…ˆã¸2(ç®±)ã‚’ç§»å‹•ã•ã›ã‚‹
+            // ç®±ã®ç§»å‹•å‡¦ç†ã€‚MoverNumberãƒ¡ã‚½ãƒƒãƒ‰å†…ã§MoveNumberãƒ¡ã‚½ãƒƒãƒ‰ã‚’
+            // å‘¼ã³ã€å‡¦ç†ãŒå†å¸°ã—ã¦ã„ã‚‹ã€‚ç§»å‹•å¯ä¸å¯ã‚’boolã§è¨˜æ†¶
+            bool success = MoveNumber(moveTo, moveTo + velocity);
+            // ã‚‚ã—ç®±ãŒç§»å‹•å¤±æ•—ã—ãŸã‚‰ã€ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ç§»å‹•ã‚‚å¤±æ•—
             if (!success) { return false; }
-        } 
-        // sæ‚É” ‚ª‚ ‚é
-        // ƒvƒŒƒCƒ„[E” ŠÖ‚í‚ç‚¸‚ÌˆÚ“®ˆ—i‘S•”“®‚­j
-        map[moveTo] = number;
-        map[moveFrom] = 0;
+        }
+
+        // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãƒ»ç®±é–¢ã‚ã‚‰ãšã®ç§»å‹•å‡¦ç†
+        field[moveFrom.y, moveFrom.x].transform.position =
+            new Vector3(moveTo.x, map.GetLength(0) - moveTo.y, 0);
+        field[moveTo.y, moveTo.x] = field[moveFrom.y, moveFrom.x];
+        field[moveFrom.y, moveFrom.x] = null;
         return true;
     }
 
     void Start()
     {
-        map = new int[] { 0, 0, 0, 1, 0, 2, 0, 2, 0 };
-        PrintArray();
+        // åˆæœŸåŒ–
+        map = new int[,]{
+        { 0, 0, 0, 0, 0, 0, 0 },
+        { 0, 0, 0, 2, 0, 0, 0 },
+        { 0, 0, 0, 2, 1, 0, 0 },
+        { 0, 0, 0, 0, 0, 0, 0 },
+        };
+
+        field = new GameObject[
+            map.GetLength(0),
+            map.GetLength(1)
+            ];
+
+        // äºŒé‡foræ–‡ã§äºŒæ¬¡å…ƒé…åˆ—ã®æƒ…å ±ã‚’å‡ºåŠ›
+        for (int y = 0; y < map.GetLength(0); y++)
+        {
+            for (int x = 0; x < map.GetLength(1); x++)
+            {
+                if (map[y, x] == 1)
+                {
+                    field[y,x] = Instantiate(
+                        playerPrefab,
+                        new Vector3(x, map.GetLength(0) - y, 0),
+                        Quaternion.identity);
+                };
+                if (map[y, x] == 2)
+                {
+                    field[y, x] = Instantiate(
+                        boxPrefab,
+                        new Vector3(x, map.GetLength(0) - y, 0),
+                        Quaternion.identity
+                        );
+                }
+            }
+        }
     }
+
 
     void Update()
     {
-        bool debugOut = false;
-
+        // å³ç§»å‹•
         if (Input.GetKeyDown(KeyCode.RightArrow))
         {
-            // ƒƒ\ƒbƒh‰»‚µ‚½ˆ—‚ğg—p
-            int playerIndex = GetPlayerIndex();
-
-            //ˆÚ“®ˆ—‚ğŠÖ”‰»
-            MoveNumber(1, playerIndex, playerIndex + 1);
-            PrintArray();
+            Vector2Int playerIndex = GetPlayerIndex();
+            MoveNumber
+                (playerIndex,
+                 playerIndex + new Vector2Int(1, 0));
         }
-
-        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        // å·¦ç§»å‹•
+        else if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
-            // ƒƒ\ƒbƒh‰»‚µ‚½ˆ—‚ğg—p
-            int playerIndex = GetPlayerIndex();
-
-            //ˆÚ“®ˆ—‚ğŠÖ”‰»
-            MoveNumber(1, playerIndex, playerIndex - 1);
-            PrintArray();
+            Vector2Int playerIndex = GetPlayerIndex();
+            MoveNumber
+                (playerIndex, 
+                 playerIndex + new Vector2Int(-1, 0));
+        }
+        // ä¸Šç§»å‹•
+        if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            Vector2Int playerIndex = GetPlayerIndex();
+            MoveNumber
+                (playerIndex,
+                 playerIndex + new Vector2Int(0, -1));
+        }
+        // ä¸‹ç§»å‹•
+        else if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            Vector2Int playerIndex = GetPlayerIndex();
+            MoveNumber
+                (playerIndex,
+                 playerIndex + new Vector2Int(0, 1));
         }
     }
 }
